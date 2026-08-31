@@ -35,6 +35,8 @@ function recordAudit(tool, args, result, note) {
   state.audit.unshift({ at: nowISO(), tool, args, result, note: note || "" });
   if (state.audit.length > 50) state.audit.length = 50;
   emit();
+  /* persist for real care history (best-effort, non-blocking) */
+  try { import("./store.js").then(m => m.appendEvent(tool, { args, result, note })).catch(()=>{}); } catch {}
 }
 
 /* ── Input validation (schema is enforced by the browser for agents calling
@@ -153,6 +155,11 @@ const confirm_action = {
     const idx = state.proposals.findIndex(p => p.id === pid);
     if (idx < 0) return { done: false, reason: "no such pending proposal" };
     const [p] = state.proposals.splice(idx, 1);
+    /* apply the decision to real state (marks med taken tonight) */
+    if (p.kind === "taken" && decision === "confirm") {
+      const med = state.meds.find(m => m.id === p.payload.medicineId);
+      if (med) med.takenTonight = true;
+    }
     recordAudit("confirm_action", { proposalId: pid, decision }, { kind: p.kind }, "human-decision");
     return { done: true, decision, kind: p.kind, proposalId: pid };
   },
@@ -200,15 +207,49 @@ const get_audit_trail = {
   },
 };
 
+const mark_taken = {
+  name: "mark_med_taken",
+  title: "Mark a med as taken tonight (waits for human)",
+  description: "Queue a proposal to mark one of tonight’s meds as taken. Nothing changes until the human confirms the card. Use when the caregiver says the dose was taken.",
+  inputSchema: {
+    type: "object",
+    properties: { medicine: { type: "string", maxLength: 64 } },
+    required: ["medicine"],
+    additionalProperties: false,
+  },
+  async execute({ medicine } = {}, { signal } = {}) {
+    const name = requireString(medicine, "medicine");
+    const med = state.meds.find(m => m.name.toLowerCase().includes(name.toLowerCase()));
+    if (!med) return { queued: false, reason: "unknown medicine" };
+    const proposal = {
+      id: "prop-" + Math.random().toString(36).slice(2, 8),
+      kind: "taken",
+      payload: { medicineId: med.id, medicine: med.name },
+      preview: `Mark “${med.name}” as taken tonight (${med.dose}). For your approval.`,
+      note: "", createdAt: nowISO(),
+    };
+    state.proposals.unshift(proposal);
+    recordAudit("mark_med_taken", { medicine: name }, { proposalId: proposal.id }, "awaiting-human");
+    return { queued: true, proposalId: proposal.id, status: "pending-human-approval" };
+  },
+};
+
 /* ── Registration ──────────────────────────────────────────────────────── */
 
 export const TOOLS = [
   get_med_schedule, check_supply, propose_refill,
-  confirm_action, book_pharmacy_pickup, get_audit_trail,
+  confirm_action, book_pharmacy_pickup, get_audit_trail, mark_taken,
 ];
-
 export function onState(fn) { state.listeners.add(fn); }
 export function getState() { return state; }
+
+/* executeTool wrapper that ALSO records to audit (agent-facing path)
+ * + graceful fallback when a host browser passes an object instead of string */
+export async function secureExecute(tool, input) {
+  const arg = typeof input === "string" ? input : JSON.stringify(input ?? {});
+  const raw = await document.modelContext.executeTool(tool, arg);
+  return JSON.parse(raw);
+}
 
 export async function proposeHumanDecision(id, decision) {
   return confirm_action.execute({ proposalId: id, decision });

@@ -34,6 +34,13 @@
     </div>
   </section>
 
+  <section id="panel-security" class="card">
+    <h2>Red-Team Lab <span class="who">spec §6 attacks, live</span></h2>
+    <p class="hint">The WebMCP draft (§6.4) lists prompt-injection mitigations as open TODOs. We implemented them — this tab re-runs the spec’s own attacks against CareDesk tools in front of you.</p>
+    <button id="run-attacks" class="confirm">Run attacks ▶</button>
+    <div id="security-results"></div>
+  </section>
+
   <section id="panel-audit" class="card">
     <h2>Audit trail <span class="who">every tool call, visible</span></h2>
     <ol id="audit-trail" class="audit"></ol>

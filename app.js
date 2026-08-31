@@ -1,5 +1,6 @@
-/* CareDesk app.js — UI wiring: meds list, proposals, audit trail, WebMCP status. */
+/* CareDesk app.js — UI wiring: meds list, proposals, audit trail, WebMCP status + i18n. */
 import { registerAllTools, onState, getState, proposeHumanDecision } from "./tools.js";
+import { mountToggle, proposalTitle, actionLabels, emptyProposalsText, supplyText } from "./i18n.js";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -8,10 +9,12 @@ function renderMeds() {
   $("#med-list").innerHTML = meds.map(m => `
     <li>
       <div><strong>${m.name}</strong><div class="dose">${m.dose}</div></div>
-      <div class="supply ${m.supplyDays <= 5 ? "low" : "ok"}">
-        ${m.supplyDays}d supply${m.supplyDays <= 5 ? " · LOW" : ""}
-      </div>
+      <div class="supply ${m.supplyDays <= 5 ? "low" : "ok"}"></span>
     </li>`).join("");
+  document.querySelectorAll("#med-list .supply").forEach((el, i) => {
+    const m = meds[i];
+    el.textContent = supplyText(m.supplyDays, m.supplyDays <= 5);
+  });
 }
 
 function renderProposals() {
@@ -21,16 +24,17 @@ function renderProposals() {
   count.textContent = String(proposals.length);
   count.classList.toggle("zero", proposals.length === 0);
   if (!proposals.length) {
-    wrap.innerHTML = `<p class="empty">Nothing pending. Proposals appear here for <strong>your</strong> approval — the agent never acts alone.</p>`;
+    wrap.innerHTML = `<p class="empty">${emptyProposalsText()}</p>`;
     return;
   }
+  const labels = actionLabels();
   wrap.innerHTML = proposals.map(p => `
     <div class="proposal" data-id="${p.id}">
-      <h3>${p.kind === "refill" ? "💊 Refill request" : "🚚 Pharmacy pickup"}</h3>
+      <h3>${proposalTitle(p.kind)}</h3>
       <p class="detail">${p.preview}${p.note ? ` — <em>${p.note}</em>` : ""}</p>
       <div class="actions">
-        <button class="confirm" data-decision="confirm">Confirm</button>
-        <button class="dismiss" data-decision="dismiss">Dismiss</button>
+        <button class="confirm" data-decision="confirm">${labels.confirm}</button>
+        <button class="dismiss" data-decision="dismiss">${labels.dismiss}</button>
       </div>
     </div>`).join("");
 }
@@ -65,6 +69,7 @@ async function initStatus() {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+  mountToggle();
   renderAll();
   onState(renderAll);
   initStatus();
@@ -73,9 +78,18 @@ window.addEventListener("DOMContentLoaded", () => {
 /* human buttons → confirm boundary (the ONLY path that decisions take) */
 document.addEventListener("click", async (ev) => {
   const btn = ev.target.closest("button[data-decision]");
-  if (!btn) return;
-  const id = btn.closest(".proposal")?.dataset.id;
-  if (!id) return;
-  btn.disabled = true;
-  await proposeHumanDecision(id, btn.dataset.decision);
+  if (btn) {
+    const id = btn.closest(".proposal")?.dataset.id;
+    if (!id) return;
+    btn.disabled = true;
+    await proposeHumanDecision(id, btn.dataset.decision);
+    return;
+  }
+  const runAtk = ev.target.closest("#run-attacks");
+  if (runAtk) {
+    runAtk.disabled = true;
+    const { runAttacks } = await import("./security.js");
+    await runAttacks();
+    runAtk.disabled = false;
+  }
 });
