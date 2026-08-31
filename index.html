@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CareDesk — human + agent care coordination</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">🧑‍🤝‍🧑</div>
+    <div>
+      <h1>CareDesk</h1>
+      <p class="tag">Care coordination where <strong>you</strong> and your <strong>agent</strong> share one desk.</p>
+    </div>
+  </div>
+  <div id="webmcp-status" class="status" title="WebMCP availability">
+    <span class="dot"></span><span id="webmcp-status-text">checking WebMCP…</span>
+  </div>
+</header>
+
+<main>
+  <section id="panel-meds" class="card">
+    <h2>Tonight’s meds <span class="who">for Papá</span></h2>
+    <ul id="med-list" class="meds"></ul>
+    <p class="hint">Ask your agent: <em>“Check Dad’s evening meds and what needs a refill.”</em></p>
+  </section>
+
+  <section id="panel-proposals" class="card">
+    <h2>Pending <span class="who">agent proposals</span> <span class="badge" id="pending-count">0</span></h2>
+    <div id="proposals">
+      <p class="empty">Nothing pending. Proposals appear here for <strong>your</strong> approval — the agent never acts alone.</p>
+    </div>
+  </section>
+
+  <section id="panel-audit" class="card">
+    <h2>Audit trail <span class="who">every tool call, visible</span></h2>
+    <ol id="audit-trail" class="audit"></ol>
+  </section>
+</main>
+
+<footer>
+  <p>Built for the <strong>WebMCP Challenge</strong> · Every consequential action shows an exact preview and waits for a human “Confirm”. Tools with <code>untrustedContentHint</code> are spotlighted. <a href="https://webmachinelearning.github.io/webmcp/" target="_blank" rel="noopener">WebMCP spec ↗</a></p>
+</footer>
+
+<script type="module" src="tools.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
